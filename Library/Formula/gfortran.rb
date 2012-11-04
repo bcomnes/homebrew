@@ -27,9 +27,12 @@ class Gfortran < Formula
       version "4.2.4-5659"
     else
       # This version works for XCode 3.2.3-4.0 on Snow Leopard.
-      url 'http://r.research.att.com/gfortran-42-5664.pkg'
-      md5 'eb64ba9f8507da22e582814a69fbb7ca'
-      version "4.2.4-5664"
+      #url 'http://r.research.att.com/gfortran-42-5664.pkg'
+      #md5 'eb64ba9f8507da22e582814a69fbb7ca'
+      #version "4.2.4-5664"
+      url 'http://r.research.att.com/tools/gcc-42-5666.3-darwin11.pkg'
+      md5 '3ccf46da27aaba17706b420711fb997e'
+      version '4.2.4-5666.3'
     end
   else
     # Lion
@@ -60,7 +63,8 @@ class Gfortran < Formula
   end
 
   def install
-    if MacOS::Xcode.version >= '4.2' and MacOS.version >= :lion
+    #if MacOS::Xcode.version >= '4.2' and MacOS.version >= :lion
+    if MacOS::Xcode.version >= '4.2' and MacOS.version >= :snow_leopard
       ohai "Installing gfortran 4.2.4 for XCode 4.2 (build 5666) or higher"
       safe_system "pax --insecure -rz -f Payload.gz -s ',./usr,#{prefix},'"
 
