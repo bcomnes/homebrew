@@ -1,5 +1,9 @@
+require "language/javascript"
+
 # Note that x.even are stable releases, x.odd are devel releases
 class Node < Formula
+  include Language::JS
+
   homepage "https://nodejs.org/"
   url "https://nodejs.org/dist/v0.12.0/node-v0.12.0.tar.gz"
   sha256 "9700e23af4e9b3643af48cef5f2ad20a1331ff531a12154eef2bfb0bb1682e32"
@@ -11,6 +15,8 @@ class Node < Formula
     sha256 "6796aa8bde6bc7919d075a99977a156e1bdad3b51a0de3eeccd6483a48b3e16a" => :mavericks
     sha256 "0d75a70bc7e39df1f7bf24424245db1b3f7b816d107cd154e4d6becb0069fed2" => :mountain_lion
   end
+
+  conflicts_with "iojs", :because => "node and iojs both install a binary/link named node"
 
   option "with-debug", "Build with debugger hooks"
   option "without-npm", "npm will not be installed"
@@ -50,23 +56,11 @@ class Node < Formula
     system "make", "install"
 
     if build.with? "npm"
-      resource("npm").stage buildpath/"npm_install"
-
-      # make sure npm can find node
-      ENV.prepend_path "PATH", bin
-      # make sure user prefix settings in $HOME are ignored
-      ENV["HOME"] = buildpath/"home"
-      # set log level temporarily for npm's `make install`
-      ENV["NPM_CONFIG_LOGLEVEL"] = "verbose"
-
-      cd buildpath/"npm_install" do
-        system "./configure", "--prefix=#{libexec}/npm"
-        system "make", "install"
-      end
+      resource("npm").stage npm_buildpath = buildpath/"npm_install"
+      install_npm npm_buildpath
 
       if build.with? "completion"
-        bash_completion.install \
-          buildpath/"npm_install/lib/utils/completion.sh" => "npm"
+        install_npm_bash_completion npm_buildpath
       end
     end
   end
@@ -74,32 +68,7 @@ class Node < Formula
   def post_install
     return if build.without? "npm"
 
-    node_modules = HOMEBREW_PREFIX/"lib/node_modules"
-    node_modules.mkpath
-    npm_exec = node_modules/"npm/bin/npm-cli.js"
-    # Kill npm but preserve all other modules across node updates/upgrades.
-    rm_rf node_modules/"npm"
-
-    cp_r libexec/"npm/lib/node_modules/npm", node_modules
-    # This symlink doesn't hop into homebrew_prefix/bin automatically so
-    # remove it and make our own. This is a small consequence of our bottle
-    # npm make install workaround. All other installs **do** symlink to
-    # homebrew_prefix/bin correctly. We ln rather than cp this because doing
-    # so mimics npm's normal install.
-    ln_sf npm_exec, "#{HOMEBREW_PREFIX}/bin/npm"
-
-    # Let's do the manpage dance. It's just a jump to the left.
-    # And then a step to the right, with your hand on rm_f.
-    ["man1", "man3", "man5", "man7"].each do |man|
-      # Dirs must exist first: https://github.com/Homebrew/homebrew/issues/35969
-      mkdir_p HOMEBREW_PREFIX/"share/man/#{man}"
-      rm_f Dir[HOMEBREW_PREFIX/"share/man/#{man}/{npm.,npm-,npmrc.}*"]
-      ln_sf Dir[libexec/"npm/share/man/#{man}/npm*"], HOMEBREW_PREFIX/"share/man/#{man}"
-    end
-
-    npm_root = node_modules/"npm"
-    npmrc = npm_root/"npmrc"
-    npmrc.atomic_write("prefix = #{HOMEBREW_PREFIX}\n")
+    npm_post_install libexec
   end
 
   def caveats
@@ -107,9 +76,18 @@ class Node < Formula
 
     if build.with? "npm"
       s += <<-EOS.undent
-        If you update npm itself, do NOT use the npm update command.
-        The upstream-recommended way to update npm is:
+        npm has been installed. To update run
           npm install -g npm@latest
+
+        You can install global npm packages with
+          npm install -g <package>
+
+        They will install into the global node_modiles directory
+          #{HOMEBREW_PREFIX}/lib/node_modules
+
+        Do NOT use the npm update command with global modules.
+        The upstream-recommended way to update global modules is:
+          npm install -g <package>@latest
       EOS
     else
       s += <<-EOS.undent
@@ -146,9 +124,7 @@ class Node < Formula
       # make sure npm can find node
       ENV.prepend_path "PATH", opt_bin
       assert_equal which("node"), opt_bin/"node"
-      assert (HOMEBREW_PREFIX/"bin/npm").exist?, "npm must exist"
-      assert (HOMEBREW_PREFIX/"bin/npm").executable?, "npm must be executable"
-      system "#{HOMEBREW_PREFIX}/bin/npm", "--verbose", "install", "npm@latest"
+      npm_test_install
     end
   end
 end
