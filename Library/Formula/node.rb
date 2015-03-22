@@ -2,8 +2,6 @@ require "language/javascript"
 
 # Note that x.even are stable releases, x.odd are devel releases
 class Node < Formula
-  include Language::JS
-
   homepage "https://nodejs.org/"
   url "https://nodejs.org/dist/v0.12.0/node-v0.12.0.tar.gz"
   sha256 "9700e23af4e9b3643af48cef5f2ad20a1331ff531a12154eef2bfb0bb1682e32"
@@ -57,10 +55,10 @@ class Node < Formula
 
     if build.with? "npm"
       resource("npm").stage npm_buildpath = buildpath/"npm_install"
-      install_npm npm_buildpath
+      Language::JS.install_npm npm_buildpath, buildpath, bin, libexec
 
       if build.with? "completion"
-        install_npm_bash_completion npm_buildpath
+        Language::JS.install_npm_bash_completion bash_completion, npm_buildpath
       end
     end
   end
@@ -68,7 +66,7 @@ class Node < Formula
   def post_install
     return if build.without? "npm"
 
-    npm_post_install libexec
+    Language::JS.npm_post_install libexec
   end
 
   def caveats
@@ -124,7 +122,7 @@ class Node < Formula
       # make sure npm can find node
       ENV.prepend_path "PATH", opt_bin
       assert_equal which("node"), opt_bin/"node"
-      npm_test_install
+      Language::JS.npm_test_install
     end
   end
 end
