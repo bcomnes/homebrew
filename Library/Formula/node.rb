@@ -38,7 +38,11 @@ class Node < Formula
   def install
     args = %W[--prefix=#{prefix} --without-npm]
     args << "--debug" if build.with? "debug"
-    args << "--with-intl=system-icu" if build.with? "icu4c"
+    if build.with? "icu4c"
+      # build with system-icu
+      args << "--with-intl=system-icu"
+      # where system-icu is homebrew's icu4c
+      ENV.append "PKG_CONFIG_PATH", "#{Formula["icu4c"].opt_prefix}/lib/pkgconfig"
     args << "--shared-openssl" if build.with? "openssl"
 
     system "./configure", *args
